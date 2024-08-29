@@ -1,9 +1,12 @@
 <script lang="ts">
-	import Three from '$lib/Three.svelte';
+	import { browser } from '$app/environment';
+	import CanvasConcept from '$lib/CanvasConcept.svelte';
 </script>
 
 <main>
-	<Three />
+	{#if browser}
+		<CanvasConcept />
+	{/if}
 </main>
 
 <style>

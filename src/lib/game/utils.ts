@@ -1,0 +1,35 @@
+import { Vector2D } from './vector2d';
+
+export function generatePoissionPoints(
+    seed: number,
+    width: number,
+    height: number,
+    radius: number,
+    attempts: number
+): Vector2D[] {
+    // Implement Poisson disk sampling algorithm here
+    // This is a placeholder implementation
+    const points: Vector2D[] = [];
+    const rng = seedRandom(seed);
+
+    for (let i = 0; i < attempts; i++) {
+        const x = rng() * width;
+        const y = rng() * height;
+        const point = new Vector2D(x, y);
+
+        if (!points.some(p => p.distanceTo(point) < radius)) {
+            points.push(point);
+        }
+    }
+
+    return points;
+}
+
+function seedRandom(seed: number): () => number {
+    // Implement a seeded random number generator
+    // This is a simple placeholder implementation
+    return () => {
+        seed = (seed * 1664525 + 1013904223) % 4294967296;
+        return seed / 4294967296;
+    };
+}

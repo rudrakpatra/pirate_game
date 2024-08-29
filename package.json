@@ -30,6 +30,7 @@
 	},
 	"type": "module",
 	"dependencies": {
+		"@types/three": "^0.167.2",
 		"three": "^0.168.0"
 	}
 }
