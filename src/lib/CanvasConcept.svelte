@@ -46,6 +46,7 @@
 <style>
 	* {
 		text-align: center;
+		touch-action: none;
 	}
 	div {
 		position: fixed;
