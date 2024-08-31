@@ -3,10 +3,9 @@ import { spring, type Spring } from 'svelte/motion';
 
 export class Shooting {
 	private dragging: boolean = false;
-	private offsetOffset: Vector2d | null = null;
 	private maxRange: number;
-	private f: number = 1.5;
-	private damping: number = 0.3;
+	private f: number = 4;
+	private damping: number = 0.2;
 	offsetSpring: Spring<Vector2d>;
 
 	constructor(maxRange: number) {
@@ -17,21 +16,26 @@ export class Shooting {
 	bound(x: number, min = 0 * this.f, max = this.maxRange * this.f): number {
 		return Math.min(max, Math.max(min, x));
 	}
+	private center(node: HTMLElement) {
+		const rect = node.getBoundingClientRect();
+		return new Vector2d(rect.x + rect.width / 2, rect.y + rect.height / 2);
+	}
 
 	handlePointerDown(e: PointerEvent, node: HTMLElement): void {
-		const rect = node.getBoundingClientRect();
-		this.offsetOffset = new Vector2d(e.clientX - rect.left, e.clientY - rect.top);
-		this.offsetSpring.set(new Vector2d(0, 0));
+		const offset = new Vector2d(e.clientX, e.clientY).subtract(this.center(node));
+		const length = offset.magnitude();
+		const bounded = this.bound(length);
+		const direction = offset.normalize();
+		const boundedOffset = direction.scale(bounded);
+		this.offsetSpring.set(boundedOffset);
 		this.dragging = true;
+		// this.offsetSpring.stiffness = 1;
 		this.offsetSpring.damping = 1;
 	}
 
 	handlePointerMove(e: PointerEvent, node: HTMLElement): void {
-		const rect = node.getBoundingClientRect();
 		if (this.dragging) {
-			const offset = new Vector2d(e.clientX - rect.left, e.clientY - rect.top).subtract(
-				this.offsetOffset!
-			);
+			const offset = new Vector2d(e.clientX, e.clientY).subtract(this.center(node));
 			const length = offset.magnitude();
 			const bounded = this.bound(length);
 			const direction = offset.normalize();
@@ -41,10 +45,7 @@ export class Shooting {
 	}
 
 	handlePointerUp(e: PointerEvent, node: HTMLElement): Vector2d {
-		const rect = node.getBoundingClientRect();
-		const offset = new Vector2d(e.clientX - rect.left, e.clientY - rect.top).subtract(
-			this.offsetOffset!
-		);
+		const offset = new Vector2d(e.clientX, e.clientY).subtract(this.center(node));
 		const length = offset.magnitude();
 		const bounded = this.bound(length);
 		const direction = offset.normalize();

@@ -77,8 +77,8 @@
 		left: 50%;
 		transform: translateX(-50%) translateY(-50%);
 		user-select: none;
-		width: min(100vw, 50vh);
-		height: min(100vw, 50vh);
+		width: min(60vw, 60vh);
+		height: min(60vw, 60vh);
 		background-color: #0001;
 		& > span {
 			position: absolute;
@@ -89,7 +89,7 @@
 			width: 10px;
 			height: 10px;
 			border-radius: 50%;
-			background-color: #0001;
+			background-color: #f007;
 		}
 	}
 </style>
