@@ -4,7 +4,6 @@ import { spring, type Spring } from 'svelte/motion';
 export class Shooting {
 	private dragging: boolean = false;
 	private maxRange: number;
-	private f: number = 4;
 	private damping: number = 0.2;
 	offsetSpring: Spring<Vector2d>;
 
@@ -13,7 +12,7 @@ export class Shooting {
 		this.offsetSpring = spring(new Vector2d(0, 0));
 	}
 
-	bound(x: number, min = 0 * this.f, max = this.maxRange * this.f): number {
+	bound(x: number, min = 0, max = this.maxRange): number {
 		return Math.min(max, Math.max(min, x));
 	}
 	private center(node: HTMLElement) {

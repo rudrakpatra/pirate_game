@@ -15,7 +15,7 @@
 <div use:game.renderer.appendTo></div>
 <span
 	id="steering"
-	use:steering.action={(turnRate) => {
+	use:steering.onChange={(turnRate) => {
 		game.player.addTurnAction(turnRate);
 	}}
 >

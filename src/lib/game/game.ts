@@ -3,9 +3,10 @@ import { Player } from './player';
 import { CPU } from './cpu';
 import { EventSystem } from './event';
 import { Renderer } from './renderer';
+import { ThreeRenderer } from './threeRenderer';
 
 export class Game {
-	renderer: Renderer;
+	renderer: ThreeRenderer;
 	private world: World;
 	player: Player;
 	private cpus: CPU[];
@@ -20,9 +21,7 @@ export class Game {
 		this.cpus = Array(10)
 			.fill(0)
 			.map(() => new CPU(this.world.spawnShip())); // Initialize 5 CPU-controlled ships
-		this.renderer = new Renderer();
-		this.renderer.canvas.width = worldSize;
-		this.renderer.canvas.height = worldSize;
+		this.renderer = new ThreeRenderer();
 		this.elaspedTime = Date.now();
 	}
 
