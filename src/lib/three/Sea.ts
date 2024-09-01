@@ -8,18 +8,17 @@ export class Sea {
 	private seaMesh: THREE.Mesh;
 	private waterNormalMap: THREE.Texture | null;
 	private clock: THREE.Clock;
-	private textureRepeat: number;
 	private uniforms: {
 		time: { value: number };
 		grid: { value: number };
 	};
+	private scaleHeight = 1;
 
-	constructor(size: Size2, textureRepeat: number = 10) {
+	constructor(size: Size2) {
 		this.size = size;
-		this.textureRepeat = textureRepeat;
 		this.waterNormalMap = null;
 		this.clock = new THREE.Clock();
-		this.geometry = new THREE.PlaneGeometry(this.size.w, this.size.h, 100, 100);
+		this.geometry = new THREE.PlaneGeometry(this.size.w, this.size.h, 200, 200);
 		this.geometry.rotateX(-Math.PI * 0.5);
 		this.uniforms = {
 			time: { value: 0 },
@@ -27,11 +26,12 @@ export class Sea {
 		};
 		this.material = this.createSeaMaterial();
 		this.seaMesh = new THREE.Mesh(this.geometry, this.material);
-		this.seaMesh.scale.y = 0.2;
+		this.seaMesh.scale.setY(this.scaleHeight);
 	}
 	private createSeaMaterial(): THREE.MeshStandardMaterial {
 		const material = new THREE.MeshStandardMaterial({
-			color: 0x1060f0
+			color: 0x0088aa,
+			roughness: 1
 		});
 
 		material.onBeforeCompile = (shader) => {
@@ -88,9 +88,95 @@ export class Sea {
                     vHeight = pos.y;
                 `
 				);
+			shader.fragmentShader = `
+				varying float vHeight;
+				${shader.fragmentShader}
+			  `.replace(
+				`#include <color_fragment>`,
+				`#include <color_fragment>
+				  diffuseColor.rgb = mix(vec3(0.0,0.3,0.7), vec3(0.05,0.3,0.65), smoothstep(0.0, 6.0, vHeight));
+				`
+			);
 		};
 
 		return material;
+	}
+
+	align(obj: THREE.Object3D) {
+		// 3 points pinning method
+		const offsetX = 1;
+		const offsetY = 1;
+		const offsetZ = 1;
+
+		// Sample heights at three points
+		const centerHeight = this.getHeightAt(obj.position) + offsetY;
+		const forwardHeight =
+			this.getHeightAt(obj.position.clone().add(new THREE.Vector3(0, 0, offsetZ))) + offsetY;
+		const rightHeight =
+			this.getHeightAt(obj.position.clone().add(new THREE.Vector3(offsetX, 0, 0))) + offsetY;
+
+		// Create three points in local space
+		const p0 = new THREE.Vector3(0, 0, 0);
+		const p1 = new THREE.Vector3(0, forwardHeight - centerHeight, offsetZ);
+		const p2 = new THREE.Vector3(offsetX, rightHeight - centerHeight, 0);
+
+		// Calculate normal
+		const normal = new THREE.Vector3()
+			.crossVectors(p1.clone().sub(p0), p2.clone().sub(p0))
+			.normalize();
+
+		// Ensure normal points upwards
+		if (normal.y < 0) normal.negate();
+
+		// Create rotation to align up vector with normal
+		const quaternion = new THREE.Quaternion().setFromUnitVectors(
+			new THREE.Vector3(0, 1, 0),
+			normal
+		);
+
+		// Apply rotation
+		obj.quaternion.copy(quaternion);
+
+		// Move chd to correct height
+		obj.position.y = centerHeight;
+
+		// Update chd's matrix
+		obj.updateMatrix();
+	}
+	getHeightAt(pos: THREE.Vector3) {
+		const grid = this.uniforms.grid.value;
+		const time = this.uniforms.time.value;
+
+		let retVal = pos.clone();
+		let ang;
+		const kzx = 360.0 / grid;
+
+		// Wave1 (135 degrees)
+		ang = 50.0 * time + -1.0 * pos.x * kzx + -2.0 * pos.z * kzx;
+		ang = ((ang % 360.0) * Math.PI) / 180.0;
+		retVal.y = 3.0 * Math.sin(ang);
+
+		// Wave2 (090 degrees)
+		ang = 25.0 * time + -3.0 * pos.x * kzx;
+		ang = ((ang % 360.0) * Math.PI) / 180.0;
+		retVal.y += 2.0 * Math.sin(ang);
+
+		// Wave3 (180 degrees)
+		ang = 15.0 * time - 3.0 * pos.z * kzx;
+		ang = ((ang % 360.0) * Math.PI) / 180.0;
+		retVal.y += 2.0 * Math.sin(ang);
+
+		// Wave4 (225 degrees)
+		ang = 50.0 * time + 4.0 * pos.x * kzx + 8.0 * pos.z * kzx;
+		ang = ((ang % 360.0) * Math.PI) / 180.0;
+		retVal.y += 0.5 * Math.sin(ang);
+
+		// Wave5 (270 degrees)
+		ang = 50.0 * time + 8.0 * pos.x * kzx;
+		ang = ((ang % 360.0) * Math.PI) / 180.0;
+		retVal.y += 0.5 * Math.sin(ang);
+
+		return retVal.y * this.scaleHeight;
 	}
 
 	mesh(): THREE.Mesh {

@@ -3,30 +3,34 @@
 	import wheel from './assets/wheel.png';
 	import Game from './three/Game';
 	import { Steering } from './ui/steering';
-	import { load, type LoadedAssets } from './three/Load';
 	const game = new Game();
+	let ready = game.ready;
 	const steering = new Steering(150);
 	const turnRateSpring = steering.turnRateSpring;
-	let gltfs: LoadedAssets;
 	onMount(async () => {
-		game.create();
-		gltfs = await load();
-		game.assignLoadedAssets(gltfs);
+		game.onMount();
 	});
 	onDestroy(async () => {
-		game.destroy();
+		game.onDestroy();
 	});
 </script>
 
-{#if gltfs}
+{#if ready}
 	<div use:game.setDomElement></div>
-	<span id="steering" use:steering.onChange={(turnRate) => {}}>
+	<span
+		id="steering"
+		use:steering.onChange={(turnRate) => {
+			setTimeout(() => game.player.setTurnRate(turnRate), 1000);
+		}}
+	>
 		<img
 			style="transform-origin:center;transform:rotate({$turnRateSpring}deg);"
 			src={wheel}
 			alt="wheel"
 		/>
 	</span>
+{:else}
+	<div id="loader">Loading...</div>
 {/if}
 
 <style>
@@ -41,6 +45,11 @@
 		width: 100vw;
 		height: 100vh;
 		background-color: #333; /* Optional: Background color */
+	}
+	#loader {
+		display: grid;
+		place-items: center;
+		font-size: 2em;
 	}
 	#steering {
 		position: fixed;
