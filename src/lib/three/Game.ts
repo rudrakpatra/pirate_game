@@ -36,7 +36,7 @@ export class Ship {
 		public turnRate = 0,
 		public maxTurnRate = 180,
 		public inventory = { gold: 0, ammo: 10 },
-		public range = 50
+		public range = 40
 	) {}
 }
 
