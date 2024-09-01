@@ -12,7 +12,7 @@ export class Sea {
 		time: { value: number };
 		grid: { value: number };
 	};
-	private scaleHeight = 1;
+	private scaleHeight = 0.2;
 
 	constructor(size: Size2) {
 		this.size = size;
@@ -22,7 +22,7 @@ export class Sea {
 		this.geometry.rotateX(-Math.PI * 0.5);
 		this.uniforms = {
 			time: { value: 0 },
-			grid: { value: this.size.w }
+			grid: { value: this.size.w / 2 }
 		};
 		this.material = this.createSeaMaterial();
 		this.seaMesh = new THREE.Mesh(this.geometry, this.material);
@@ -94,7 +94,7 @@ export class Sea {
 			  `.replace(
 				`#include <color_fragment>`,
 				`#include <color_fragment>
-				  diffuseColor.rgb = mix(vec3(0.0,0.3,0.7), vec3(0.05,0.3,0.65), smoothstep(0.0, 6.0, vHeight));
+				  diffuseColor.rgb = mix(vec3(0.0,0.3,0.7), vec3(0.05,0.4,0.65), smoothstep(0.0, 6.0, vHeight));
 				`
 			);
 		};
@@ -187,9 +187,9 @@ export class Sea {
 		const elapsedTime = this.clock.getElapsedTime();
 		this.uniforms.time.value = elapsedTime;
 
-		if (this.waterNormalMap) {
-			this.waterNormalMap.offset.x -= 0.0005;
-			this.waterNormalMap.offset.y += 0.00025;
-		}
+		// if (this.waterNormalMap) {
+		// 	this.waterNormalMap.offset.x -= 0.0005;
+		// 	this.waterNormalMap.offset.y += 0.00025;
+		// }
 	}
 }

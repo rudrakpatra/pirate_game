@@ -1,53 +1,58 @@
 import {
 	AmbientLight,
-	BoxGeometry,
+	Clock,
 	Color,
-	ConeGeometry,
-	CylinderGeometry,
 	DirectionalLight,
 	FogExp2,
 	Material,
 	Mesh,
-	MeshStandardMaterial,
 	Object3D,
 	PCFSoftShadowMap,
 	PerspectiveCamera,
-	PlaneGeometry,
-	Quaternion,
 	Raycaster,
 	Scene,
-	SphereGeometry,
 	Vector2,
 	Vector3,
 	VSMShadowMap,
 	WebGLRenderer
 } from 'three';
 import { Size2, Vec2 } from './Utils';
-import { MapControls } from 'three/examples/jsm/controls/MapControls.js';
 import { Sea } from './Sea';
 import { load, type LoadedAssets } from './Load';
-import { writable, type Writable } from 'svelte/store';
+import { get, writable, type Writable } from 'svelte/store';
+import { Gizmo } from './Gizmo';
 
 export class Island {
+	ref: number | null = null;
 	constructor() {}
 }
 export class Gold {
+	ref: number | null = null;
 	constructor() {}
 }
 export class Ship {
+	ref: number | null = null;
 	constructor(
 		public turnRate = 0,
 		public maxTurnRate = 180,
-		public inventory = { gold: 0, ammo: 10 }
+		public inventory = { gold: 0, ammo: 10 },
+		public range = 50
 	) {}
 }
+
 export class Player {
 	ship: Ship;
+	turnRateChangeTimeout: number | null;
 	constructor() {
 		this.ship = new Ship();
+		this.turnRateChangeTimeout = null;
 	}
+	setAttackOffset(offset: Vector2) {}
 	setTurnRate(t: number) {
-		this.ship.turnRate = Math.max(-this.ship.maxTurnRate, Math.min(this.ship.maxTurnRate, t));
+		if (t) clearTimeout(t);
+		this.turnRateChangeTimeout = setTimeout(() => {
+			this.ship.turnRate = Math.max(-this.ship.maxTurnRate, Math.min(this.ship.maxTurnRate, t));
+		}, 1000);
 	}
 }
 export default class Game {
@@ -55,11 +60,19 @@ export default class Game {
 	scene: Scene;
 	renderer: WebGLRenderer;
 	camera: PerspectiveCamera;
-	// controls: MapControls;
+	cameraOffset = new Vector3(0, 80, 60);
+	cameraLookAtOffset = new Vector3(0, 0, 20);
 	sea: Sea;
 	player: Player;
+	gizmo: Gizmo;
+	raycaster: Raycaster;
+	mouse: Vector2;
+	clock: Clock;
+	blockHeight: Writable<number>;
 	constructor(public size: Size2 = new Size2(400, 400)) {
 		this.ready = writable(false);
+		this.blockHeight = writable(0);
+		this.clock = new Clock(true);
 		this.scene = new Scene();
 		this.scene.background = new Color(0xcccccc);
 		this.scene.fog = new FogExp2(0xcccccc, 0.002);
@@ -73,47 +86,35 @@ export default class Game {
 		this.renderer.setAnimationLoop(this.animate.bind(this));
 
 		this.camera = new PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000);
-		this.camera.position.set(0, 60, 40);
-		this.camera.lookAt(new Vector3(0, 0, 0));
+		this.camera.position.set(this.cameraOffset.x, this.cameraOffset.y, this.cameraOffset.z);
+		this.camera.lookAt(new Vector3(0, 0, 0).add(this.cameraLookAtOffset));
 		this.sea = new Sea(this.size);
 
 		this.player = new Player();
-
-		// controls
-
-		// this.controls = new MapControls(this.camera, this.renderer.domElement);
-
-		// //controls.addEventListener( 'change', render ); // call this only in static scenes (i.e., if there is no animation loop)
-
-		// this.controls.enableDamping = true; // an animation loop is required when either damping or auto-rotation are enabled
-		// this.controls.dampingFactor = 0.05;
-
-		// this.controls.screenSpacePanning = false;
-
-		// this.controls.minDistance = 100;
-		// this.controls.maxDistance = 100;
-
-		// this.controls.maxPolarAngle = Math.PI / 2;
+		this.gizmo = new Gizmo(this.player.ship.range, new Color(0xffffff), new Color(0xff0000));
+		this.raycaster = new Raycaster();
+		this.mouse = new Vector2();
+		this.scene.add(this.gizmo.circle);
 	}
 	async onMount() {
 		addEventListener('resize', this.onWindowResize.bind(this));
+		this.renderer.domElement.addEventListener('mousemove', this.onMouseMove.bind(this), false);
+		this.renderer.domElement.addEventListener('click', this.onClick.bind(this), false);
 		const { ship, loot, island, cannonball } = await load();
-		ship.scene.traverse((o) => {
-			if (o instanceof Mesh) {
-				// o.receiveShadow = true;
-				// o.castShadow = true;
-			}
-		});
-		this.scene.add(ship.scene.translateY(1));
+		const playerShip = ship.scene.clone();
+		this.player.ship.ref = playerShip.id;
+		this.scene.add(playerShip);
 		this.addSea();
 		this.addLights();
 		this.addRandomly(loot, 10, 10);
+		this.addRandomly(island, 3, 3, 100);
 		this.ready.set(true);
 	}
 	onDestroy() {
 		// Remove event listener for window resize
 		window.removeEventListener('resize', this.onWindowResize.bind(this));
-
+		this.renderer.domElement.removeEventListener('mousemove', this.onMouseMove.bind(this), false);
+		this.renderer.domElement.addEventListener('click', this.onClick.bind(this), false);
 		// Clean up the scene
 		this.scene.traverse((object) => {
 			if (object instanceof Mesh) {
@@ -150,6 +151,15 @@ export default class Game {
 
 		// Set the ready writable store to false
 		this.ready.set(false);
+	}
+	onMouseMove(event: MouseEvent) {
+		// Calculate mouse position in normalized device coordinates
+		this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+		this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+	}
+	onClick(event: MouseEvent) {
+		this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+		this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 	}
 	addSea() {
 		// const s = new Mesh(
@@ -214,7 +224,20 @@ export default class Game {
 	}
 
 	animate() {
-		// this.controls.update(); // only required if controls.enableDamping = true, or if controls.autoRotate = true
+		const elapsedTime = this.clock.getElapsedTime();
+		if (elapsedTime > get(this.blockHeight)) {
+			this.blockHeight.set(Math.floor(elapsedTime));
+		}
+		if (this.player.ship.ref) {
+			const playerShip = this.scene.getObjectById(this.player.ship.ref);
+			if (playerShip) {
+				playerShip.userData.turnRate = -this.player.ship.turnRate / (30 * 360);
+				// Update the circle position
+				this.gizmo.updatePosition(playerShip.position);
+				this.raycaster.setFromCamera(this.mouse.clone(), this.camera);
+				this.gizmo.checkHover(this.raycaster);
+			}
+		}
 		this.sea.update();
 		this.render();
 		this.scene.children.forEach((chd) => {
@@ -230,8 +253,8 @@ export default class Game {
 				case 'ship':
 					// Dynamically calculate the turning angle (this can be based on input or another function)
 					chd.userData.direction = chd.userData.direction || Math.PI / 2;
-					chd.userData.direction += 0.01;
-					const speed = 0.2; // The speed at which the ship moves forward
+					chd.userData.direction += chd.userData.turnRate;
+					const speed = 0.1; // The speed at which the ship moves forward
 
 					// Rotate the ship around its Y-axis (up axis)
 					chd.rotateY(chd.userData.direction);
@@ -244,14 +267,14 @@ export default class Game {
 					chd.position.add(forward.multiplyScalar(speed));
 
 					// Set an offset for the camera relative to the ship's position
-					const offset = new Vector3(0, 60, 40); // Adjust these values to position the camera
-					const cameraPosition = chd.position.clone().add(offset); // Clone ship position and add the offset
+					// Adjust these values to position the camera
+					const cameraPosition = chd.position.clone().add(this.cameraOffset); // Clone ship position and add the offset
 
 					// Update the camera's position
 					this.camera.position.set(cameraPosition.x, cameraPosition.y, cameraPosition.z);
 
 					// Make the camera look at the ship
-					this.camera.lookAt(chd.position);
+					this.camera.lookAt(chd.position.clone().add(this.cameraLookAtOffset));
 					break;
 
 				case 'loot':

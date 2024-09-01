@@ -7,6 +7,7 @@
 	let ready = game.ready;
 	const steering = new Steering(150);
 	const turnRateSpring = steering.turnRateSpring;
+	const gameBlockHeightWritable = game.blockHeight;
 	onMount(async () => {
 		game.onMount();
 	});
@@ -17,17 +18,22 @@
 
 {#if ready}
 	<div use:game.setDomElement></div>
-	<span
-		id="steering"
-		use:steering.onChange={(turnRate) => {
-			setTimeout(() => game.player.setTurnRate(turnRate), 1000);
-		}}
-	>
-		<img
-			style="transform-origin:center;transform:rotate({$turnRateSpring}deg);"
-			src={wheel}
-			alt="wheel"
-		/>
+	<span id="overlay">
+		<span
+			id="steering"
+			use:steering.onChange={(turnRate) => {
+				game.player.setTurnRate(turnRate);
+			}}
+		>
+			<img
+				style="transform-origin:center;transform:rotate({$turnRateSpring}deg);"
+				src={wheel}
+				alt="wheel"
+			/>
+		</span>
+		<span>
+			{$gameBlockHeightWritable} block
+		</span>
 	</span>
 {:else}
 	<div id="loader">Loading...</div>
@@ -45,6 +51,14 @@
 		width: 100vw;
 		height: 100vh;
 		background-color: #333; /* Optional: Background color */
+	}
+	#overlay {
+		position: fixed;
+		inset: 0;
+		pointer-events: none;
+		& > * {
+			pointer-events: auto;
+		}
 	}
 	#loader {
 		display: grid;
